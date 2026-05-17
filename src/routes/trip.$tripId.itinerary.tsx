@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -7,19 +9,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { generateItinerary } from "@/lib/itinerary.functions";
+
+type Search = { t?: string };
 
 export const Route = createFileRoute("/trip/$tripId/itinerary")({
+  validateSearch: (search: Record<string, unknown>): Search => ({
+    t: typeof search.t === "string" ? search.t : undefined,
+  }),
   head: () => ({ meta: [{ title: "Itinerary — Whatever" }] }),
   component: ItineraryPage,
 });
-
-const MEMBERS = [
-  { name: "Marcus", score: 91 },
-  { name: "Priya", score: 78 },
-  { name: "Aisha", score: 88 },
-  { name: "Jordan", score: 82 },
-  { name: "Sam", score: 81 },
-];
 
 type Activity = {
   time: string;
@@ -27,59 +27,40 @@ type Activity = {
   category: string;
   compromise?: string;
 };
-
-const DAYS: { day: number; date: string; items: Activity[] }[] = [
-  {
-    day: 1,
-    date: "Thu, Jun 5",
-    items: [
-      {
-        time: "9:00",
-        name: "Breakfast at Café Janis",
-        category: "Food",
-        compromise:
-          "Starting at 9am — between Marcus's early start and Priya's late start preference.",
-      },
-      { time: "10:30", name: "Walk through Alfama", category: "Culture" },
-      { time: "13:00", name: "Lunch at Time Out Market", category: "Food" },
-      { time: "20:30", name: "Fado night in Bairro Alto", category: "Nightlife" },
-    ],
-  },
-  {
-    day: 2,
-    date: "Fri, Jun 6",
-    items: [
-      { time: "9:30", name: "Jerónimos Monastery", category: "Culture" },
-      { time: "12:00", name: "Pastéis de Belém", category: "Food" },
-      {
-        time: "15:00",
-        name: "LX Factory — light browsing",
-        category: "Culture",
-        compromise: "Lighter afternoon to balance the chill vs. full-throttle split.",
-      },
-      { time: "19:30", name: "Dinner at Prado", category: "Food" },
-    ],
-  },
-  {
-    day: 3,
-    date: "Sat, Jun 7",
-    items: [
-      { time: "9:00", name: "Day trip to Sintra", category: "Culture" },
-      {
-        time: "13:00",
-        name: "Lunch at Tascantiga (veg options)",
-        category: "Food",
-        compromise: "Vegetarian-friendly venue picked for Aisha and Sam.",
-      },
-      { time: "18:00", name: "Sunset at Miradouro da Graça", category: "Nature" },
-      { time: "21:00", name: "Late dinner at Cervejaria Ramiro", category: "Food" },
-    ],
-  },
-];
-
-const groupScore = 84;
-
 function ItineraryPage() {
+  const { tripId } = Route.useParams();
+  const genFn = useServerFn(generateItinerary);
+  const q = useQuery({
+    queryKey: ["itinerary", tripId],
+    queryFn: () => genFn({ data: { tripId } }),
+    retry: 1,
+    staleTime: Infinity,
+  });
+
+  if (q.isLoading) {
+    return (
+      <main className="min-h-screen px-6 py-24 text-center">
+        <h1 className="font-display text-4xl uppercase tracking-wide">Building your trip…</h1>
+        <p className="mt-3 text-muted-foreground">Crunching everyone's preferences.</p>
+      </main>
+    );
+  }
+  if (q.isError || !q.data) {
+    return (
+      <main className="min-h-screen px-6 py-24 text-center">
+        <p className="text-muted-foreground">
+          Couldn't build the itinerary yet. Make sure everyone has submitted.
+        </p>
+        <Button className="mt-6" onClick={() => q.refetch()}>Try again</Button>
+      </main>
+    );
+  }
+
+  const itinerary = q.data.itinerary;
+  const groupScore = Math.round(itinerary.satisfactionScore);
+  const MEMBERS = itinerary.memberScores ?? [];
+  const DAYS = (itinerary.days ?? []) as { day: number; date: string; items: Activity[] }[];
+
   return (
     <main className="min-h-screen pb-20">
       <div className="mx-auto w-full max-w-2xl px-6 py-12">
@@ -102,7 +83,7 @@ function ItineraryPage() {
             />
           </div>
 
-          <div className="mt-6 grid grid-cols-5 gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
             {MEMBERS.map((m) => (
               <div key={m.name} className="flex flex-col items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
