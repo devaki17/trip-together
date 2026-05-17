@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/trip/moodboard")({
+export const Route = createFileRoute("/trip/$tripId/moodboard")({
   head: () => ({ meta: [{ title: "Moodboard — Whatever" }] }),
   component: MoodboardPage,
 });

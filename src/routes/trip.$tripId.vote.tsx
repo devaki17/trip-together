@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { CONFLICTS, ConflictCard } from "./trip.$tripId.conflicts";
+import { CONFLICTS, ConflictCard } from "@/lib/conflicts-data";
 
 type Weight = "Strong" | "Medium" | "Low";
 const WEIGHTS: Weight[] = ["Strong", "Medium", "Low"];
@@ -18,7 +18,7 @@ type VoteSearch = {
   o?: string;
 };
 
-export const Route = createFileRoute("/trip/vote")({
+export const Route = createFileRoute("/trip/$tripId/vote")({
   validateSearch: (search: Record<string, unknown>): VoteSearch => ({
     d: typeof search.d === "string" ? search.d : undefined,
     b: typeof search.b === "string" ? search.b : undefined,

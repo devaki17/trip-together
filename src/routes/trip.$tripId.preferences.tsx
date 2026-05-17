@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Mountain,
@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   Sparkles,
   Heart,
-  Check,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,6 +75,8 @@ const BUDGET_LABEL: Record<string, string> = {
 
 function PreferencesPage() {
   const search = Route.useSearch();
+  const { tripId } = Route.useParams();
+  const navigate = useNavigate();
   const [vibes, setVibes] = useState<string[]>([]);
   const [shakeId, setShakeId] = useState<string | null>(null);
   const [energy, setEnergy] = useState<number>(1);
@@ -83,7 +84,6 @@ function PreferencesPage() {
   const [evening, setEvening] = useState<string>("");
   const [diet, setDiet] = useState("");
   const [physical, setPhysical] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
   const toggleVibe = (id: string) => {
     if (vibes.includes(id)) {
@@ -99,7 +99,8 @@ function PreferencesPage() {
     setVibes([...vibes, id]);
   };
 
-  const onSubmit = () => setSubmitted(true);
+  const onSubmit = () =>
+    navigate({ to: "/trip/$tripId/moodboard", params: { tripId }, search });
 
   const dateRange =
     search.s && search.e
@@ -242,23 +243,12 @@ function PreferencesPage() {
       {/* Sticky CTA */}
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-2xl px-6 py-4">
-          {submitted ? (
-            <div className="flex animate-[fade-in_0.3s_ease-out] items-center justify-center gap-3 py-3 text-center">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Check className="h-5 w-5" strokeWidth={3} />
-              </span>
-              <span className="text-sm font-medium">
-                You're in. We'll let you know when everyone's submitted.
-              </span>
-            </div>
-          ) : (
-            <Button
-              onClick={onSubmit}
-              className="h-12 w-full text-base font-semibold uppercase tracking-wide"
-            >
-              Submit my preferences
-            </Button>
-          )}
+          <Button
+            onClick={onSubmit}
+            className="h-12 w-full text-base font-semibold uppercase tracking-wide"
+          >
+            Submit my preferences
+          </Button>
         </div>
       </div>
     </main>
