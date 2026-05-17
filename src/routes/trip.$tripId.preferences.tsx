@@ -171,7 +171,7 @@ function PreferencesPage() {
               onValueChange={(v) => setEnergy(v[0])}
               min={0}
               max={2}
-              step={1}
+              step={0.01}
               className="[&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:rounded-full [&_[role=slider]]:border-0 [&_[role=slider]]:bg-primary [&_[role=slider]]:shadow-md"
             />
             <div className="mt-4 flex justify-between text-xs">
@@ -179,7 +179,7 @@ function PreferencesPage() {
                 <span
                   key={label}
                   className={cn(
-                    i === energy
+                    i === Math.round(energy)
                       ? "font-semibold text-primary"
                       : "text-muted-foreground",
                   )}
@@ -190,7 +190,7 @@ function PreferencesPage() {
             </div>
             <div className="mt-4 flex items-center justify-center gap-2 text-sm">
               <Heart className="h-4 w-4 fill-primary text-primary" />
-              <span className="font-medium">{ENERGY_LABELS[energy]}</span>
+              <span className="font-medium">{ENERGY_LABELS[Math.round(energy)]}</span>
             </div>
           </div>
         </section>
