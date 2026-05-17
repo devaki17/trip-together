@@ -153,7 +153,10 @@ Respond with ONLY a JSON object of shape:
 
     await supabaseAdmin
       .from("trips")
-      .update({ itinerary: itinerary as unknown as object, status: "finalized" })
+      .update({
+        itinerary: itinerary as unknown as never,
+        status: "finalized",
+      })
       .eq("id", data.tripId);
 
     return { itinerary };
