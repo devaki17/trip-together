@@ -10,7 +10,7 @@ type ConflictSearch = {
   o?: string;
 };
 
-export const Route = createFileRoute("/trip/conflicts")({
+export const Route = createFileRoute("/trip/$tripId/conflicts")({
   validateSearch: (search: Record<string, unknown>): ConflictSearch => ({
     d: typeof search.d === "string" ? search.d : undefined,
     b: typeof search.b === "string" ? search.b : undefined,
