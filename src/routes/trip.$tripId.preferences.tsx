@@ -190,7 +190,7 @@ function PreferencesPage() {
             </div>
             <div className="mt-4 flex items-center justify-center gap-2 text-sm">
               <Heart className="h-4 w-4 fill-primary text-primary" />
-              <span className="font-medium">{ENERGY_LABELS[energy]}</span>
+              <span className="font-medium">{ENERGY_LABELS[Math.round(energy)]}</span>
             </div>
           </div>
         </section>
