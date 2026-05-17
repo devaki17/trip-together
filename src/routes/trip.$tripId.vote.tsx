@@ -18,7 +18,7 @@ type VoteSearch = {
   o?: string;
 };
 
-export const Route = createFileRoute("/trip/vote")({
+export const Route = createFileRoute("/trip/$tripId/vote")({
   validateSearch: (search: Record<string, unknown>): VoteSearch => ({
     d: typeof search.d === "string" ? search.d : undefined,
     b: typeof search.b === "string" ? search.b : undefined,
