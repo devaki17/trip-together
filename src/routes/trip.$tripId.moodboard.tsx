@@ -1,12 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { submitMoodboard } from "@/lib/trips.functions";
+
+type Search = { t?: string };
 
 export const Route = createFileRoute("/trip/$tripId/moodboard")({
+  validateSearch: (search: Record<string, unknown>): Search => ({
+    t: typeof search.t === "string" ? search.t : undefined,
+  }),
   head: () => ({ meta: [{ title: "Moodboard — Whatever" }] }),
   component: MoodboardPage,
 });
@@ -18,9 +25,12 @@ const CARDS = Array.from({ length: 18 }, (_, i) => ({
 
 function MoodboardPage() {
   const { tripId } = Route.useParams();
+  const { t: token } = Route.useSearch();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<number[]>([]);
   const [shakeId, setShakeId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submitFn = useServerFn(submitMoodboard);
 
   const toggle = (id: number) => {
     if (selected.includes(id)) {
@@ -38,6 +48,23 @@ function MoodboardPage() {
 
   const count = selected.length;
   const done = count === 5;
+
+  const onSubmit = async () => {
+    if (!token || !done || submitting) return;
+    setSubmitting(true);
+    try {
+      await submitFn({ data: { tripId, token, photoIds: selected } });
+      navigate({
+        to: "/trip/$tripId/conflicts",
+        params: { tripId },
+        search: { t: token },
+      });
+    } catch (err) {
+      console.error(err);
+      toast(err instanceof Error ? err.message : "Couldn't save picks");
+      setSubmitting(false);
+    }
+  };
 
   return (
     <main className="min-h-screen pb-32">
@@ -100,11 +127,11 @@ function MoodboardPage() {
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-4xl px-6 py-4">
           <Button
-            disabled={!done}
-            onClick={() => navigate({ to: "/trip/$tripId/conflicts", params: { tripId } })}
+            disabled={!done || submitting}
+            onClick={onSubmit}
             className="h-12 w-full text-base font-semibold uppercase tracking-wide"
           >
-            Lock in my picks
+            {submitting ? "Saving…" : "Lock in my picks"}
           </Button>
         </div>
       </div>

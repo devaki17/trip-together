@@ -1,84 +1,103 @@
+## Backend plan — Whatever group trip planning
 
-## Whatever — Group Trip Planning App
+### 1. Enable Lovable Cloud
+Turn on the integrated backend (Postgres + storage + server functions). No login required for users — they identify themselves with just a display name on each invite link.
 
-Two screens, no auth, frontend-only state for now (in-memory + URL params). Backend can be added later when invite links need to persist.
+### 2. Database schema
 
-### Design system (src/styles.css)
+```text
+trips
+  id (uuid, pk)              -- the tripId in the URL
+  name, destination, budget
+  depart_date, return_date
+  organizer_name
+  organizer_email
+  status                     -- 'collecting' | 'voting' | 'finalized'
+  itinerary (jsonb, null)    -- AI-generated, filled when all submit
+  created_at
 
-Replace existing tokens:
-- `--background`: #F9F6F1 (warm off-white)
-- `--foreground`: #1A1A1A (charcoal)
-- `--primary`: #9C4F51 (terracotta), `--primary-foreground`: #FFFFFF
-- `--muted`: subtle warm gray strip color, `--border`: soft warm gray
-- All in oklch
+invitees
+  id (uuid, pk)
+  trip_id (fk -> trips)
+  email                      -- from organizer's list
+  display_name (null until they join)
+  joined_at
 
-Typography via Google Fonts link in `__root.tsx` head:
-- Bebas Neue → headings (`.font-display`)
-- Inter (Helvetica substitute, web-safe) → body, set on `body`
+preferences                  -- one row per invitee submission
+  id, trip_id, invitee_id
+  vibes (text[])             -- max 2
+  energy (numeric)           -- 0..2
+  morning_schedule (text)    -- 'early' | 'late' | 'flex'
+  evening_schedule (text)
+  restrictions (text)
+  notes (text)
+  submitted_at
 
-Add utility classes for display font and editorial spacing.
+moodboard_picks
+  id, trip_id, invitee_id
+  photo_ids (int[])          -- the 5 picsum seeds chosen
 
-### Routes
+conflict_resolutions
+  id, trip_id, invitee_id
+  conflict_id (text)         -- e.g. 'start-time'
+  choice (text)
+  submitted_at
 
+votes
+  id, trip_id, invitee_id
+  approved (bool)
+  voted_at
 ```
-src/routes/
-  __root.tsx        (add font links, set body bg)
-  index.tsx         (redirect to /create)
-  create.tsx        (Screen 1)
-  trip.$tripId.preferences.tsx  (Screen 2)
-```
 
-### Screen 1 — /create
+RLS: trips/invitees/etc. are readable by anyone with the tripId (anonymous link model). Writes are scoped per invitee via a short-lived `invitee_token` stored in localStorage so each person can only edit their own submission.
 
-Centered single-column form, max-w ~560px, generous vertical padding.
+### 3. Server functions (`src/lib/*.functions.ts`)
 
-Components used: existing shadcn `Input`, `Label`, `Select`, `Button`, `Popover`+`Calendar` for date pickers, `lucide-react` `Globe`, `Plus`, `X`, `CalendarIcon`.
+- `createTrip(name, destination, budget, dates, organizer, emails[])` → inserts trip + invitee rows, queues invite emails, returns `tripId`.
+- `getTrip(tripId)` → trip + invitees with submission status (for the organizer dashboard / context bar).
+- `joinTrip(tripId, email)` → returns/creates an `invitee_token` for that email, stored in localStorage.
+- `submitPreferences(token, data)` / `submitMoodboard(token, photoIds)` / `submitConflictResolution(token, conflictId, choice)` / `submitVote(token, approved)`.
+- `generateItinerary(tripId)` — calls the Lovable AI Gateway (Google Gemini, free during promo) with the aggregated preferences + conflict resolutions, returns a 3-day itinerary JSON, persists it to `trips.itinerary`. Triggered automatically once all invitees have submitted.
 
-State (local `useState`):
-- name, destination, budget, departDate, returnDate
-- invites: `string[]` starting `[""]`; add handler caps at 9; each row has remove button (except when only one)
+### 4. AI itinerary generation
 
-Submit: generate `tripId = crypto.randomUUID()`, navigate to `/trip/$tripId/preferences` (organizer can preview). No backend yet.
+Uses the Lovable AI Gateway (no API key needed — already wired). Prompt summarises:
+- Destination, dates, budget
+- Aggregated vibes (top 2-3)
+- Average energy level
+- Schedule preferences (majority + minority noted)
+- Restrictions per person
+- How each conflict was resolved
 
-Helper text below CTA in muted-foreground.
+Returns structured JSON: `{ days: [{ date, activities: [{ time, title, description, vibe, compromiseTag? }] }], satisfactionScore, memberScores }`. The itinerary screen renders directly from this.
 
-### Screen 2 — /trip/$tripId/preferences
+### 5. Invite emails
 
-Top context bar: full-width strip, light warm gray bg, small text, single line:
-`{destination} · {dates} · {budget} · Organized by {name}`
-Since there's no backend, read from URL search params (organizer passes them) OR show placeholder values. Plan: pass via search params from /create navigation; fall back to placeholders if missing.
+Use Lovable's built-in email system (no external service to configure):
+- Set up email infrastructure + transactional template `trip-invite` with the trip name, organizer, and invite link `https://<app>/trip/{tripId}/preferences?token={inviteeToken}`.
+- On trip creation, enqueue one email per invitee.
+- Requires you to verify an email subdomain (e.g. `notify.yourdomain.com`) — I'll walk you through the DNS step when we get there.
 
-Single scrolling page — all 4 sections rendered simultaneously. No accordion/tabs/steps.
+### 6. Frontend wiring
 
-**Section 1 — Vibe (max 2):**
-- 2-col grid of toggle cards, each with lucide icon: Mountain (Adventure), Landmark (Culture), UtensilsCrossed (Food & Drink), Sun (Relaxation), Music (Nightlife), Trees (Nature & Outdoors), ShoppingBag (Shopping), Sparkles (Wellness)
-- Selected: terracotta border + `bg-primary/10`
-- On 3rd click: trigger CSS shake animation on the card + show tooltip "Pick up to 2." (using sonner toast or inline tooltip with timeout)
-- Add `@keyframes shake` to styles.css and `animate-shake` utility
+- `/create` → calls `createTrip`, redirects organizer to `/trip/$tripId/preferences?token=...`.
+- Invite links carry `?token=...`; each screen reads token + tripId, fetches trip context (replacing current URL-param placeholders), submits via the matching server function.
+- `/itinerary` waits until `trips.itinerary` is populated, polls every few seconds (or shows "Waiting for X people").
 
-**Section 2 — Energy:**
-- Custom horizontal slider (use shadcn `Slider` with 3 stops, values 0/1/2)
-- Override thumb to be a terracotta filled heart (lucide `Heart`) — absolutely positioned over slider thumb, or restyle via `[&_[role=slider]]` selectors
-- Stop labels below: Chill / Balanced / Full throttle, selected one bolded in terracotta
+### Out of scope for this pass
 
-**Section 3 — Schedule:**
-- Two question groups, each rendering pill toggle buttons (single-select). Use `ToggleGroup` with `type="single"`, styled pill shape, selected = terracotta bg
+- Realtime updates (will use polling; can upgrade to Supabase realtime later)
+- Organizer dashboard to track who's submitted (can add after)
+- Editing a submission after sending it
 
-**Section 4 — Restrictions:**
-- Two stacked `Textarea` with "Optional" gray label inline with heading
+### Order of work
 
-**Sticky CTA:**
-- `sticky bottom-0` container with backdrop blur + top border, contains full-width terracotta button "Submit my preferences"
-- On submit: replace button content with checkmark (lucide `Check`) scale-in animation + text "You're in. We'll let you know when everyone's submitted."
+1. Enable Cloud
+2. Create schema + RLS
+3. Server functions + token model
+4. Wire `/create` → `createTrip` and rebuild context bar from real data
+5. Wire preferences / moodboard / conflicts / vote screens to their submit functions
+6. AI itinerary generation + `/itinerary` data binding
+7. Email infrastructure + invite template + DNS guidance
 
-### Out of scope (call out)
-
-- No auth, no database, no real invite emails sent — clicking submit just shows confirmation
-- Invitee links won't actually carry trip data across devices (no backend). The organizer is redirected locally to preview the preferences form. To make invites truly work, Lovable Cloud needs to be enabled — flag this for a follow-up.
-
-### Technical notes
-
-- Date pickers: shadcn pattern with `Popover` + `Calendar`, `mode="single"`, `className="p-3 pointer-events-auto"`
-- All colors via semantic tokens — no hardcoded hex in components
-- Shake keyframe + heart-thumb styling added to `src/styles.css`
-- `index.tsx` becomes a redirect to `/create` via `<Navigate to="/create" />`
+Approve and I'll start at step 1.

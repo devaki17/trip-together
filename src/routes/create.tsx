@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Globe, Plus, X } from "lucide-react";
@@ -15,6 +16,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { createTrip } from "@/lib/trips.functions";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -34,11 +38,14 @@ const MAX_INVITES = 9;
 function CreateTripPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
+  const [organizerEmail, setOrganizerEmail] = useState("");
   const [destination, setDestination] = useState("");
   const [budget, setBudget] = useState<string>("");
   const [depart, setDepart] = useState<Date | undefined>();
   const [ret, setRet] = useState<Date | undefined>();
   const [invites, setInvites] = useState<string[]>([""]);
+  const [submitting, setSubmitting] = useState(false);
+  const createTripFn = useServerFn(createTrip);
 
   const addInvite = () => {
     if (invites.length < MAX_INVITES) setInvites([...invites, ""]);
@@ -50,24 +57,48 @@ function CreateTripPage() {
     setInvites(invites.length === 1 ? [""] : invites.filter((_, idx) => idx !== i));
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const tripId = crypto.randomUUID().slice(0, 8);
-    navigate({
-      to: "/trip/$tripId/preferences",
-      params: { tripId },
-      search: {
-        d: destination || undefined,
-        b: budget || undefined,
-        s: depart ? depart.toISOString().slice(0, 10) : undefined,
-        e: ret ? ret.toISOString().slice(0, 10) : undefined,
-        o: name || undefined,
-      },
-    });
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await createTripFn({
+        data: {
+          name,
+          destination,
+          budget,
+          departDate: depart ? depart.toISOString().slice(0, 10) : null,
+          returnDate: ret ? ret.toISOString().slice(0, 10) : null,
+          organizerEmail,
+          inviteeEmails: invites.map((e) => e.trim()).filter(Boolean),
+        },
+      });
+
+      // Store invite links locally so organizer can copy them on the next screen.
+      try {
+        localStorage.setItem(
+          `whatever:trip:${res.tripId}:invites`,
+          JSON.stringify(res.invites),
+        );
+      } catch {
+        // ignore quota / private mode errors
+      }
+
+      navigate({
+        to: "/trip/$tripId/preferences",
+        params: { tripId: res.tripId },
+        search: { t: res.organizerToken },
+      });
+    } catch (err) {
+      console.error(err);
+      toast(err instanceof Error ? err.message : "Couldn't create trip");
+      setSubmitting(false);
+    }
   };
 
   return (
     <main className="min-h-screen px-6 py-16 sm:py-24">
+      <Toaster position="top-center" />
       <div className="mx-auto w-full max-w-xl">
         <header className="mb-12 text-center">
           <h1 className="font-display text-5xl sm:text-6xl uppercase tracking-wide text-foreground">
@@ -86,6 +117,18 @@ function CreateTripPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Alex Morgan"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Your email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={organizerEmail}
+              onChange={(e) => setOrganizerEmail(e.target.value)}
+              placeholder="you@email.com"
               required
             />
           </div>
@@ -163,9 +206,10 @@ function CreateTripPage() {
           <div className="pt-2">
             <Button
               type="submit"
+              disabled={submitting}
               className="h-12 w-full text-base font-semibold uppercase tracking-wide"
             >
-              Create trip & send invites
+              {submitting ? "Creating…" : "Create trip & send invites"}
             </Button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Each person you invite will get a link to add their preferences.

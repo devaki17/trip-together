@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
   Mountain,
   Landmark,
@@ -13,26 +15,19 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { getTrip, submitPreferences, whoAmI } from "@/lib/trips.functions";
 
-type TripSearch = {
-  d?: string;
-  b?: string;
-  s?: string;
-  e?: string;
-  o?: string;
-};
+type Search = { t?: string };
 
 export const Route = createFileRoute("/trip/$tripId/preferences")({
-  validateSearch: (search: Record<string, unknown>): TripSearch => ({
-    d: typeof search.d === "string" ? search.d : undefined,
-    b: typeof search.b === "string" ? search.b : undefined,
-    s: typeof search.s === "string" ? search.s : undefined,
-    e: typeof search.e === "string" ? search.e : undefined,
-    o: typeof search.o === "string" ? search.o : undefined,
+  validateSearch: (search: Record<string, unknown>): Search => ({
+    t: typeof search.t === "string" ? search.t : undefined,
   }),
   head: () => ({
     meta: [
@@ -74,9 +69,26 @@ const BUDGET_LABEL: Record<string, string> = {
 };
 
 function PreferencesPage() {
-  const search = Route.useSearch();
   const { tripId } = Route.useParams();
+  const { t: token } = Route.useSearch();
   const navigate = useNavigate();
+
+  const getTripFn = useServerFn(getTrip);
+  const whoAmIFn = useServerFn(whoAmI);
+  const submitFn = useServerFn(submitPreferences);
+
+  const tripQ = useQuery({
+    queryKey: ["trip", tripId],
+    queryFn: () => getTripFn({ data: { tripId } }),
+  });
+
+  const meQ = useQuery({
+    queryKey: ["me", tripId, token],
+    queryFn: () => whoAmIFn({ data: { tripId, token: token! } }),
+    enabled: !!token,
+  });
+
+  const [displayName, setDisplayName] = useState("");
   const [vibes, setVibes] = useState<string[]>([]);
   const [shakeId, setShakeId] = useState<string | null>(null);
   const [energy, setEnergy] = useState<number>(1);
@@ -84,6 +96,13 @@ function PreferencesPage() {
   const [evening, setEvening] = useState<string>("");
   const [diet, setDiet] = useState("");
   const [physical, setPhysical] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (meQ.data?.invitee.display_name && !displayName) {
+      setDisplayName(meQ.data.invitee.display_name);
+    }
+  }, [meQ.data, displayName]);
 
   const toggleVibe = (id: string) => {
     if (vibes.includes(id)) {
@@ -99,29 +118,65 @@ function PreferencesPage() {
     setVibes([...vibes, id]);
   };
 
-  const onSubmit = () =>
-    navigate({ to: "/trip/$tripId/moodboard", params: { tripId }, search });
+  const onSubmit = async () => {
+    if (!token) return toast("Missing invite token.");
+    if (!displayName.trim()) return toast("Add your name so the group knows it's you.");
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await submitFn({
+        data: {
+          tripId,
+          token,
+          displayName: displayName.trim(),
+          vibes,
+          energy,
+          morningSchedule: morning || undefined,
+          eveningSchedule: evening || undefined,
+          diet: diet || undefined,
+          physical: physical || undefined,
+        },
+      });
+      navigate({
+        to: "/trip/$tripId/moodboard",
+        params: { tripId },
+        search: { t: token },
+      });
+    } catch (err) {
+      console.error(err);
+      toast(err instanceof Error ? err.message : "Couldn't save preferences");
+      setSubmitting(false);
+    }
+  };
 
+  const trip = tripQ.data?.trip;
   const dateRange =
-    search.s && search.e
-      ? `${formatDate(search.s)} – ${formatDate(search.e)}`
+    trip?.depart_date && trip?.return_date
+      ? `${formatDate(trip.depart_date)} – ${formatDate(trip.return_date)}`
       : "Dates TBD";
+
+  if (!token) {
+    return (
+      <main className="min-h-screen px-6 py-20 text-center">
+        <p className="text-muted-foreground">This link is missing its invite token.</p>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen pb-32">
       <Toaster position="top-center" />
-      {/* Context bar */}
       <div className="border-b border-border bg-secondary/60">
         <div className="mx-auto max-w-2xl px-6 py-2.5 text-xs text-muted-foreground sm:text-sm">
           <span className="text-foreground font-medium">
-            {search.d ?? "Destination TBD"}
+            {trip?.destination ?? "…"}
           </span>
           <span className="mx-2">·</span>
           <span>{dateRange}</span>
           <span className="mx-2">·</span>
-          <span>{search.b ? BUDGET_LABEL[search.b] ?? "Budget TBD" : "Budget TBD"}</span>
+          <span>{trip ? BUDGET_LABEL[trip.budget] ?? trip.budget : "…"}</span>
           <span className="mx-2">·</span>
-          <span>Organized by {search.o ?? "your friend"}</span>
+          <span>Organized by {trip?.organizer_name ?? "…"}</span>
         </div>
       </div>
 
@@ -130,7 +185,17 @@ function PreferencesPage() {
           What's the vibe?
         </h1>
 
-        {/* Section 1 — Vibes */}
+        <section className="mt-10 space-y-2">
+          <Label htmlFor="dn">Your name</Label>
+          <Input
+            id="dn"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="So the group knows it's you"
+            maxLength={60}
+          />
+        </section>
+
         <section className="mt-12">
           <h2 className="text-lg font-semibold">What's your vibe? Pick up to 2.</h2>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -162,7 +227,6 @@ function PreferencesPage() {
           </div>
         </section>
 
-        {/* Section 2 — Energy */}
         <section className="mt-14">
           <h2 className="text-lg font-semibold">How packed do you want each day?</h2>
           <div className="mt-8 px-2">
@@ -195,23 +259,11 @@ function PreferencesPage() {
           </div>
         </section>
 
-        {/* Section 3 — Schedule */}
         <section className="mt-14 space-y-8">
-          <PillGroup
-            label="Morning start"
-            options={MORNING}
-            value={morning}
-            onChange={setMorning}
-          />
-          <PillGroup
-            label="Evening end"
-            options={EVENING}
-            value={evening}
-            onChange={setEvening}
-          />
+          <PillGroup label="Morning start" options={MORNING} value={morning} onChange={setMorning} />
+          <PillGroup label="Evening end" options={EVENING} value={evening} onChange={setEvening} />
         </section>
 
-        {/* Section 4 — Restrictions */}
         <section className="mt-14 space-y-6">
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
@@ -221,8 +273,9 @@ function PreferencesPage() {
             <Textarea
               value={diet}
               onChange={(e) => setDiet(e.target.value)}
-              placeholder="Any dietary restrictions or preferences? (e.g., vegetarian, no shellfish, halal)"
+              placeholder="Any dietary restrictions or preferences?"
               rows={3}
+              maxLength={800}
             />
           </div>
           <div className="space-y-2">
@@ -233,21 +286,22 @@ function PreferencesPage() {
             <Textarea
               value={physical}
               onChange={(e) => setPhysical(e.target.value)}
-              placeholder="Any physical restrictions we should plan around? (e.g., no hiking, wheelchair access needed)"
+              placeholder="Any physical restrictions we should plan around?"
               rows={3}
+              maxLength={800}
             />
           </div>
         </section>
       </div>
 
-      {/* Sticky CTA */}
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-2xl px-6 py-4">
           <Button
             onClick={onSubmit}
+            disabled={submitting}
             className="h-12 w-full text-base font-semibold uppercase tracking-wide"
           >
-            Submit my preferences
+            {submitting ? "Saving…" : "Submit my preferences"}
           </Button>
         </div>
       </div>

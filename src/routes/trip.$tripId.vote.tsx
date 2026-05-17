@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,25 +7,16 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CONFLICTS, ConflictCard } from "@/lib/conflicts-data";
+import { submitConflictResolutions } from "@/lib/trips.functions";
 
 type Weight = "Strong" | "Medium" | "Low";
 const WEIGHTS: Weight[] = ["Strong", "Medium", "Low"];
 
-type VoteSearch = {
-  d?: string;
-  b?: string;
-  s?: string;
-  e?: string;
-  o?: string;
-};
+type VoteSearch = { t?: string };
 
 export const Route = createFileRoute("/trip/$tripId/vote")({
   validateSearch: (search: Record<string, unknown>): VoteSearch => ({
-    d: typeof search.d === "string" ? search.d : undefined,
-    b: typeof search.b === "string" ? search.b : undefined,
-    s: typeof search.s === "string" ? search.s : undefined,
-    e: typeof search.e === "string" ? search.e : undefined,
-    o: typeof search.o === "string" ? search.o : undefined,
+    t: typeof search.t === "string" ? search.t : undefined,
   }),
   head: () => ({ meta: [{ title: "Vote — Whatever" }] }),
   component: VotePage,
@@ -32,8 +24,11 @@ export const Route = createFileRoute("/trip/$tripId/vote")({
 
 function VotePage() {
   const { tripId } = Route.useParams();
+  const { t: token } = Route.useSearch();
   const navigate = useNavigate();
   const [votes, setVotes] = useState<Record<string, Weight>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const submitFn = useServerFn(submitConflictResolutions);
 
   const usedBy = (w: Weight) =>
     Object.entries(votes).find(([, v]) => v === w)?.[0];
@@ -54,6 +49,32 @@ function VotePage() {
   };
 
   const allAssigned = Object.keys(votes).length === 3;
+
+  const onSubmit = async () => {
+    if (!token || !allAssigned || submitting) return;
+    setSubmitting(true);
+    try {
+      await submitFn({
+        data: {
+          tripId,
+          token,
+          resolutions: Object.entries(votes).map(([conflictId, choice]) => ({
+            conflictId,
+            choice,
+          })),
+        },
+      });
+      navigate({
+        to: "/trip/$tripId/itinerary",
+        params: { tripId },
+        search: { t: token },
+      });
+    } catch (err) {
+      console.error(err);
+      toast(err instanceof Error ? err.message : "Couldn't save priorities");
+      setSubmitting(false);
+    }
+  };
 
   return (
     <main className="min-h-screen pb-32">
@@ -129,11 +150,11 @@ function VotePage() {
       <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-2xl px-6 py-4">
           <Button
-            disabled={!allAssigned}
-            onClick={() => navigate({ to: "/trip/$tripId/itinerary", params: { tripId } })}
+            disabled={!allAssigned || submitting}
+            onClick={onSubmit}
             className="h-12 w-full text-base font-semibold uppercase tracking-wide"
           >
-            Submit my priorities
+            {submitting ? "Saving…" : "Submit my priorities"}
           </Button>
         </div>
       </div>
