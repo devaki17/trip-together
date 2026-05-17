@@ -171,7 +171,7 @@ function PreferencesPage() {
               onValueChange={(v) => setEnergy(v[0])}
               min={0}
               max={2}
-              step={1}
+              step={0.01}
               className="[&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:rounded-full [&_[role=slider]]:border-0 [&_[role=slider]]:bg-primary [&_[role=slider]]:shadow-md"
             />
             <div className="mt-4 flex justify-between text-xs">
