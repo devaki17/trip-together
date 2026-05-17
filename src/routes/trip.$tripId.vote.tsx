@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { CONFLICTS, ConflictCard } from "./trip.$tripId.conflicts";
+import { CONFLICTS, ConflictCard } from "@/lib/conflicts-data";
 
 type Weight = "Strong" | "Medium" | "Low";
 const WEIGHTS: Weight[] = ["Strong", "Medium", "Low"];
