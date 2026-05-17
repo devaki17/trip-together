@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { useState } from "react";
 import {
   Mountain,
@@ -21,16 +19,22 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
-const searchSchema = z.object({
-  d: fallback(z.string().optional(), undefined),
-  b: fallback(z.string().optional(), undefined),
-  s: fallback(z.string().optional(), undefined),
-  e: fallback(z.string().optional(), undefined),
-  o: fallback(z.string().optional(), undefined),
-});
+type TripSearch = {
+  d?: string;
+  b?: string;
+  s?: string;
+  e?: string;
+  o?: string;
+};
 
 export const Route = createFileRoute("/trip/$tripId/preferences")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (search: Record<string, unknown>): TripSearch => ({
+    d: typeof search.d === "string" ? search.d : undefined,
+    b: typeof search.b === "string" ? search.b : undefined,
+    s: typeof search.s === "string" ? search.s : undefined,
+    e: typeof search.e === "string" ? search.e : undefined,
+    o: typeof search.o === "string" ? search.o : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Your trip preferences — Whatever" },
