@@ -179,7 +179,7 @@ function PreferencesPage() {
                 <span
                   key={label}
                   className={cn(
-                    i === energy
+                    i === Math.round(energy)
                       ? "font-semibold text-primary"
                       : "text-muted-foreground",
                   )}
