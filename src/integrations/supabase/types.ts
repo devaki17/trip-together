@@ -14,7 +14,260 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conflict_resolutions: {
+        Row: {
+          choice: string
+          conflict_id: string
+          id: string
+          invitee_id: string
+          submitted_at: string
+          trip_id: string
+        }
+        Insert: {
+          choice: string
+          conflict_id: string
+          id?: string
+          invitee_id: string
+          submitted_at?: string
+          trip_id: string
+        }
+        Update: {
+          choice?: string
+          conflict_id?: string
+          id?: string
+          invitee_id?: string
+          submitted_at?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conflict_resolutions_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: false
+            referencedRelation: "invitees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_resolutions_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invitees: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          joined_at: string | null
+          token_hash: string
+          trip_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          joined_at?: string | null
+          token_hash: string
+          trip_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          joined_at?: string | null
+          token_hash?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitees_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moodboard_picks: {
+        Row: {
+          id: string
+          invitee_id: string
+          photo_ids: number[]
+          submitted_at: string
+          trip_id: string
+        }
+        Insert: {
+          id?: string
+          invitee_id: string
+          photo_ids?: number[]
+          submitted_at?: string
+          trip_id: string
+        }
+        Update: {
+          id?: string
+          invitee_id?: string
+          photo_ids?: number[]
+          submitted_at?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moodboard_picks_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "invitees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moodboard_picks_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preferences: {
+        Row: {
+          energy: number
+          evening_schedule: string | null
+          id: string
+          invitee_id: string
+          morning_schedule: string | null
+          notes: string | null
+          restrictions: string | null
+          submitted_at: string
+          trip_id: string
+          vibes: string[]
+        }
+        Insert: {
+          energy?: number
+          evening_schedule?: string | null
+          id?: string
+          invitee_id: string
+          morning_schedule?: string | null
+          notes?: string | null
+          restrictions?: string | null
+          submitted_at?: string
+          trip_id: string
+          vibes?: string[]
+        }
+        Update: {
+          energy?: number
+          evening_schedule?: string | null
+          id?: string
+          invitee_id?: string
+          morning_schedule?: string | null
+          notes?: string | null
+          restrictions?: string | null
+          submitted_at?: string
+          trip_id?: string
+          vibes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preferences_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "invitees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preferences_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          budget: string
+          created_at: string
+          depart_date: string | null
+          destination: string
+          id: string
+          itinerary: Json | null
+          name: string
+          organizer_email: string
+          organizer_name: string
+          return_date: string | null
+          status: string
+        }
+        Insert: {
+          budget: string
+          created_at?: string
+          depart_date?: string | null
+          destination: string
+          id?: string
+          itinerary?: Json | null
+          name: string
+          organizer_email: string
+          organizer_name: string
+          return_date?: string | null
+          status?: string
+        }
+        Update: {
+          budget?: string
+          created_at?: string
+          depart_date?: string | null
+          destination?: string
+          id?: string
+          itinerary?: Json | null
+          name?: string
+          organizer_email?: string
+          organizer_name?: string
+          return_date?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          approved: boolean
+          id: string
+          invitee_id: string
+          trip_id: string
+          voted_at: string
+        }
+        Insert: {
+          approved: boolean
+          id?: string
+          invitee_id: string
+          trip_id: string
+          voted_at?: string
+        }
+        Update: {
+          approved?: boolean
+          id?: string
+          invitee_id?: string
+          trip_id?: string
+          voted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: true
+            referencedRelation: "invitees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
