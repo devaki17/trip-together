@@ -11,6 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TripVoteRouteImport } from './routes/trip..vote'
+import { Route as TripMoodboardRouteImport } from './routes/trip..moodboard'
+import { Route as TripItineraryRouteImport } from './routes/trip..itinerary'
+import { Route as TripConflictsRouteImport } from './routes/trip..conflicts'
 import { Route as TripTripIdPreferencesRouteImport } from './routes/trip.$tripId.preferences'
 
 const CreateRoute = CreateRouteImport.update({
@@ -23,6 +27,26 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TripVoteRoute = TripVoteRouteImport.update({
+  id: '/trip/vote',
+  path: '/trip/vote',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TripMoodboardRoute = TripMoodboardRouteImport.update({
+  id: '/trip/moodboard',
+  path: '/trip/moodboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TripItineraryRoute = TripItineraryRouteImport.update({
+  id: '/trip/itinerary',
+  path: '/trip/itinerary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TripConflictsRoute = TripConflictsRouteImport.update({
+  id: '/trip/conflicts',
+  path: '/trip/conflicts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TripTripIdPreferencesRoute = TripTripIdPreferencesRouteImport.update({
   id: '/trip/$tripId/preferences',
   path: '/trip/$tripId/preferences',
@@ -32,30 +56,68 @@ const TripTripIdPreferencesRoute = TripTripIdPreferencesRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
+  '/trip/conflicts': typeof TripConflictsRoute
+  '/trip/itinerary': typeof TripItineraryRoute
+  '/trip/moodboard': typeof TripMoodboardRoute
+  '/trip/vote': typeof TripVoteRoute
   '/trip/$tripId/preferences': typeof TripTripIdPreferencesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
+  '/trip/conflicts': typeof TripConflictsRoute
+  '/trip/itinerary': typeof TripItineraryRoute
+  '/trip/moodboard': typeof TripMoodboardRoute
+  '/trip/vote': typeof TripVoteRoute
   '/trip/$tripId/preferences': typeof TripTripIdPreferencesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
+  '/trip/conflicts': typeof TripConflictsRoute
+  '/trip/itinerary': typeof TripItineraryRoute
+  '/trip/moodboard': typeof TripMoodboardRoute
+  '/trip/vote': typeof TripVoteRoute
   '/trip/$tripId/preferences': typeof TripTripIdPreferencesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create' | '/trip/$tripId/preferences'
+  fullPaths:
+    | '/'
+    | '/create'
+    | '/trip/conflicts'
+    | '/trip/itinerary'
+    | '/trip/moodboard'
+    | '/trip/vote'
+    | '/trip/$tripId/preferences'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create' | '/trip/$tripId/preferences'
-  id: '__root__' | '/' | '/create' | '/trip/$tripId/preferences'
+  to:
+    | '/'
+    | '/create'
+    | '/trip/conflicts'
+    | '/trip/itinerary'
+    | '/trip/moodboard'
+    | '/trip/vote'
+    | '/trip/$tripId/preferences'
+  id:
+    | '__root__'
+    | '/'
+    | '/create'
+    | '/trip/conflicts'
+    | '/trip/itinerary'
+    | '/trip/moodboard'
+    | '/trip/vote'
+    | '/trip/$tripId/preferences'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreateRoute: typeof CreateRoute
+  TripConflictsRoute: typeof TripConflictsRoute
+  TripItineraryRoute: typeof TripItineraryRoute
+  TripMoodboardRoute: typeof TripMoodboardRoute
+  TripVoteRoute: typeof TripVoteRoute
   TripTripIdPreferencesRoute: typeof TripTripIdPreferencesRoute
 }
 
@@ -75,6 +137,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trip/vote': {
+      id: '/trip/vote'
+      path: '/trip/vote'
+      fullPath: '/trip/vote'
+      preLoaderRoute: typeof TripVoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trip/moodboard': {
+      id: '/trip/moodboard'
+      path: '/trip/moodboard'
+      fullPath: '/trip/moodboard'
+      preLoaderRoute: typeof TripMoodboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trip/itinerary': {
+      id: '/trip/itinerary'
+      path: '/trip/itinerary'
+      fullPath: '/trip/itinerary'
+      preLoaderRoute: typeof TripItineraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trip/conflicts': {
+      id: '/trip/conflicts'
+      path: '/trip/conflicts'
+      fullPath: '/trip/conflicts'
+      preLoaderRoute: typeof TripConflictsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trip/$tripId/preferences': {
       id: '/trip/$tripId/preferences'
       path: '/trip/$tripId/preferences'
@@ -88,8 +178,22 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreateRoute: CreateRoute,
+  TripConflictsRoute: TripConflictsRoute,
+  TripItineraryRoute: TripItineraryRoute,
+  TripMoodboardRoute: TripMoodboardRoute,
+  TripVoteRoute: TripVoteRoute,
   TripTripIdPreferencesRoute: TripTripIdPreferencesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
